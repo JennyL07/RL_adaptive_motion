@@ -39,9 +39,7 @@ class FishEvasionEnv(gym.Env):
 
         self.a,self.b,self.c = a,b,c
         self.rho = param.rho
-        # characteristic mass
-        # M_c = 4/3*self.rho*np.sum(a*b*c)*np.pi
-        
+
         self.m = a*b*c/np.sum(a*b*c)*0
         self.J = (1/5*(a**2+b**2) + a**2)*self.m
         self.__added_mass()
@@ -52,7 +50,7 @@ class FishEvasionEnv(gym.Env):
         high = np.array([np.finfo(np.float32).max, np.pi, np.pi])
         # create the observation space and the action space
         self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float32)
-        self.action_space = spaces.Box(low = -1., high = 1., shape = (2,), dtype = np.float32)
+        self.action_space = spaces.Box(low = -1., high = 1., mode = (2,), dtype = np.float32)
 
         self.viewer = None
         self.seed()
@@ -66,28 +64,30 @@ class FishEvasionEnv(gym.Env):
         dt = self.dt
         self.oldpos = list(self.pos)
         # compute the fish nose position
-        Xhead_old = self.pos[0] + np.cos(self.pos[2])*self.a[0] + np.cos(self.pos[2]+self.shape[1])*self.a[2]*2
+        # Xhead_old = self.pos[0] + np.cos(self.pos[2])*self.a[0] + np.cos(self.pos[2]+self.shape[1])*self.a[2]*2
 
-        self.shapechange = action
+        self.modechange = action
         # impose the contraint on the shape (angles cannot exceed 120 degrees):
-        constraint_angle = 2*np.pi/3
-        self.shapechange = np.clip(self.shapechange, (-constraint_angle - self.shape)/dt, (constraint_angle - self.shape)/dt)
+        # constraint_angle = 2*np.pi/3
+
+        # self.modechange = np.clip(self.modechange, (-constraint_angle - self.shape)/dt, (constraint_angle - self.shape)/dt)
         
         # integrate the dynamics system
         options = {'rtol':1e-4,'atol':1e-8,'max_step': 1e-2}
         sol = integrate.solve_ivp(self.__firstorderdt, (0,dt), self.pos, method='RK45', t_eval=None, dense_output=False, events=None, vectorized=False,**options)
 
-        self.shape = self.shape + self.shapechange*dt              # update the shape
+        self.mode = self.mode + self.modechange*dt              # update the modes
         self.time = self.time + dt                                 # update the time
         
         position_new = sol.y[:,-1]
         self.pos = position_new                           # update the position
 
-        dXhead = self.pos[0] + np.cos(self.pos[2])*self.a[0] + np.cos(self.pos[2]+self.shape[1])*self.a[2]*2 - Xhead_old
+        dXhead = self.pos[0] + np.cos(self.pos[2])*self.a[0] + np.cos(self.pos[2]+self.mode[1])*self.a[2]*2 - Xhead_old
         terminal = self.__terminal()                      # termination condition
 
         reward = dXhead                        # compute the reward (displacement of fish nose in x direction)
         return self._get_obs(), reward, terminal, {}
+    
     def __firstorderdt(self,t,var):                   # mechanics
             m, ma1, ma2, J, Ja = self.m, self.ma1, self.ma2, self.J, self.Ja
             Dalpha_1, Dalpha_2 = self.shapechange
@@ -114,11 +114,14 @@ class FishEvasionEnv(gym.Env):
             eta[7,0] = -(J[1]+Ja[1])
             eta[5,1] = a2*(m[2]+ma2[2])
             eta[8,1] = (J[2]+Ja[2])
+            print(V.type,V.shape,M.type,M.shape)
+            print(V@M)
             A = -np.linalg.solve(V@M, V@eta)
             # equations of motions:
             vel = np.block([[Q, np.zeros((2,1))],[0,0,1]])@A@np.array([[Dalpha_1],[Dalpha_2]]).reshape((-1,))
             self.vel = vel
             return vel 
+    
     def __added_mass(self):                            # compute the added mass
         a = self.a*2/2
         b = self.b*2/2
@@ -150,6 +153,7 @@ class FishEvasionEnv(gym.Env):
         self.ma1 = ma1
         self.ma2 = ma2
         self.Ja = Ja
+
     def __initialConfig(self,mode, init_num):                    # get the initial configuration of the fish
         X, Y, theta = 0, 0, np.random.rand()*2*np.pi-np.pi
         Alpha_1, Alpha_2 = np.random.rand()*2*np.pi/3 - np.pi/3, np.random.rand()*2*np.pi/3 - np.pi/3
@@ -175,6 +179,7 @@ class FishEvasionEnv(gym.Env):
         matrixM[7,:] = np.array([-a[1]*(m[1]+ma2[1])*np.sin(alpha_1), -a[1]*(m[1]+ma2[1])*np.cos(alpha_1), (J[1]+Ja[1])+(m[1]+ma2[1])*a[0]*a[1]*np.cos(alpha_1)])
         matrixM[8,:] = np.array([-a[2]*(m[2]+ma2[2])*np.sin(alpha_2), a[2]*(m[2]+ma2[2])*np.cos(alpha_2), (J[2]+Ja[2])+(m[2]+ma2[2])*a[0]*a[2]*np.cos(alpha_2)])
         return matrixM
+    
     def __V(self):
         a_c = self.a[0]
         alpha_1, alpha_2 = self.shape
@@ -186,6 +191,7 @@ class FishEvasionEnv(gym.Env):
         matrixV[2,0:6] = [0, 0, a_c*np.sin(alpha_1), -a_c*np.cos(alpha_1), a_c*np.sin(alpha_2), a_c*np.cos(alpha_2)]
         matrixV[2,6:9] = [1,1,1]
         return matrixV
+        
     def __prescribedAngle(self,time, position = None):
         # Used when manually precribing the shape change (disregarding the RL policy, mainly for test)
         """Experimental fitting path"""

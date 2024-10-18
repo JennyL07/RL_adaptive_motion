@@ -174,6 +174,7 @@ def main(k):
     
     # creating environment
     env = fish.FishEvasionEnv(dt = 0.1)
+    print(env)
 
     # set the length of an episode
     from gym.wrappers.time_limit import TimeLimit
