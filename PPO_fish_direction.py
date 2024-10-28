@@ -36,8 +36,7 @@ class ActorCritic(nn.Module):
                 nn.Linear(64, 32),
                 nn.Tanh(),
                 nn.Linear(32, action_dim),
-                nn.Softmax(dim=-1)
-                # nn.Tanh()
+                nn.Tanh()
                 )
         
         # critic
