@@ -15,7 +15,7 @@ from gym.utils import seeding
 import numpy as np
 from os import path
 from scipy import integrate
-from colorama import Fore, Back, Style
+# from colorama import Fore, Back, Style
 
 class FishEvasionEnv(gym.Env):
     metadata = {
@@ -23,7 +23,7 @@ class FishEvasionEnv(gym.Env):
         'video.frames_per_second' : 30
     }
 
-    def __init__(self, mode = 'first-order', dt = 0.1, bodylength = 5):
+    def __init__(self, mode = 'first-order', dt = 0.1):
         # size and mass parameters
         class param:
             a = np.repeat(bodylength,3)
@@ -161,6 +161,7 @@ class FishEvasionEnv(gym.Env):
         # if manually prescribing the shape change:
         # Alpha_1, Alpha_2,_ ,_ = self.__prescribedAngle(0, position = None)
         return np.array([X, Y, theta]), np.array([Alpha_1, Alpha_2])
+    
     def __M(self):
         m, ma1, ma2, J, Ja = self.m, self.ma1, self.ma2, self.J, self.Ja
         a = self.a

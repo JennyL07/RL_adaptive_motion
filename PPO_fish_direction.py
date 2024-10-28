@@ -36,7 +36,8 @@ class ActorCritic(nn.Module):
                 nn.Linear(64, 32),
                 nn.Tanh(),
                 nn.Linear(32, action_dim),
-                nn.Tanh()
+                nn.Softmax(dim=-1)
+                # nn.Tanh()
                 )
         
         # critic
@@ -174,7 +175,6 @@ def main(k):
     
     # creating environment
     env = fish.FishEvasionEnv(dt = 0.1)
-    print(env)
 
     # set the length of an episode
     from gym.wrappers.time_limit import TimeLimit
